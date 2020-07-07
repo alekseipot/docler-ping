@@ -1,6 +1,11 @@
 package com.docler.ping;
 
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -24,9 +29,10 @@ public class Application {
     private static Map<String, OperationResult> traceLastResults = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
-        System.out.println("Looks like it works");
+        System.out.println("Executing Simple oing app");
 //        doIcmpPing(List.of("jasmin.com", "www.oranum.com"));
-        doTrace(List.of("jasmin.com", "www.oranum.com"));
+//        doTrace(List.of("jasmin.com", "www.oranum.com"));
+        doTcpPing(List.of("http://jasmin.com"));
     }
 
     public static void doIcmpPing(List<String> hosts) {
@@ -53,7 +59,37 @@ public class Application {
                     }
                     icmpPingLastResults.put(host, new OperationResult(result, time));
                 }, 0, delay, TimeUnit.SECONDS)
+        );
+    }
 
+    public static void doTcpPing(List<String> hosts) {
+        ScheduledExecutorService scheduler = Executors
+                .newScheduledThreadPool(hosts.size());
+        Integer delay = readIntegerFromConfig("TCP_DELAY");
+        hosts.parallelStream().forEach(
+                host -> scheduler.scheduleAtFixedRate(() -> {
+                    LocalDateTime time = LocalDateTime.now();
+                    long beforeCall = System.currentTimeMillis();
+                    List<String> result = new ArrayList<>();
+                    try {
+                        CloseableHttpClient httpclient = HttpClients.createDefault();
+                        HttpGet getMethod = new HttpGet(host);
+                        RequestConfig requestConfig = RequestConfig.custom()
+                                .setSocketTimeout(readIntegerFromConfig("TCP_SOCKET_TIME_OUT"))
+                                .setConnectTimeout(readIntegerFromConfig("TCP_CONNECTION_TIME_OUT"))
+                                .setConnectionRequestTimeout(readIntegerFromConfig("TCP_CONNECTION_REQUET_TIME_OUT"))
+                                .build();
+                        getMethod.setConfig(requestConfig);
+                        CloseableHttpResponse response = httpclient.execute(getMethod);
+                        result.add("host: " + host);
+                        result.add("time: " + (beforeCall - System.currentTimeMillis()));
+                        result.add("httpCode: " + response.getStatusLine().getStatusCode());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        sendReport(host);
+                    }
+                    icmpPingLastResults.put(host, new OperationResult(result, time));
+                }, 0, delay, TimeUnit.SECONDS)
         );
     }
 
