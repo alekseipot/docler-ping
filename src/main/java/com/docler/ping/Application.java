@@ -20,7 +20,8 @@ import static com.docler.ping.ConfigUtils.readStringFromConfig;
 public class Application {
 
     private static Map<String, OperationResult> icmpPingLastResults = new ConcurrentHashMap<>();
-    private static Map<String, OperationResult> tracePingLastResults = new ConcurrentHashMap<>();
+    private static Map<String, OperationResult> tcpPingLastResults = new ConcurrentHashMap<>();
+    private static Map<String, OperationResult> traceLastResults = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
         System.out.println("Looks like it works");
@@ -43,12 +44,12 @@ public class Application {
                         while ((outputLine = standardOutput.readLine()) != null) {
                             result.add(outputLine);
                             if (outputLine.toLowerCase().contains("destination host unreachable")) {
-                                //todo: call report
+                                sendReport(host);
                             }
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
-                        //todo: call report
+                        sendReport(host);
                     }
                     icmpPingLastResults.put(host, new OperationResult(result, time));
                 }, 0, delay, TimeUnit.SECONDS)
@@ -74,19 +75,28 @@ public class Application {
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    tracePingLastResults.put(host, new OperationResult(result, time));
+                    traceLastResults.put(host, new OperationResult(result, time));
                 }, 0, delay, TimeUnit.SECONDS)
 
         );
     }
 
-    public static void sendReport(String host, String icmpPingResult, String tcpPingResult, String traceResult) {
+    public static void sendReport(String host) {
         try {
             ReportRequest reportRequest = new ReportRequest();
             reportRequest.setHost(host);
-            reportRequest.setIcmpPing(icmpPingResult);
-            reportRequest.setTcpPing(tcpPingResult);
-            reportRequest.setTrace(traceResult);
+            OperationResult icmpPing = icmpPingLastResults.get(host);
+            if (icmpPing != null) {
+                reportRequest.setIcmpPing(String.join(" ", icmpPing.getResults()));
+            }
+            OperationResult tcpPing = tcpPingLastResults.get(host);
+            if (tcpPing != null) {
+                reportRequest.setTcpPing(String.join(" ", tcpPing.getResults()));
+            }
+            OperationResult trace = traceLastResults.get(host);
+            if (trace != null) {
+                reportRequest.setTrace(String.join(" ", trace.getResults()));
+            }
             ReportSender.sendReport(reportRequest);
         } catch (IOException e) {
             e.printStackTrace();
