@@ -7,7 +7,25 @@
     <groupId>docler.com</groupId>
     <artifactId>ping</artifactId>
     <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <java.version>13</java.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.9</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.12</version>
+        </dependency>
+
+    </dependencies>
     <name>docler-ping-app</name>
 
-    
+
 </project>
