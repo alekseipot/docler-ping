@@ -2,21 +2,30 @@ package com.docler.ping;
 
 import org.apache.commons.lang3.SystemUtils;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+
+import static com.docler.ping.ConfigUtils.readIntegerFromConfig;
+import static com.docler.ping.ConfigUtils.readStringFromConfig;
 
 public class Application {
 
-    private static Map<String, OperationResult> icmpPingLastResults = new HashMap<>();
+    private static Map<String, OperationResult> icmpPingLastResults = new ConcurrentHashMap<>();
+    private static Map<String, OperationResult> tracePingLastResults = new ConcurrentHashMap<>();
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         System.out.println("Looks like it works");
-        doIcmpPing(List.of("jasmin.com", "www.oranum.com"));
+//        doIcmpPing(List.of("jasmin.com", "www.oranum.com"));
+        doTrace(List.of("jasmin.com", "www.oranum.com"));
     }
 
     public static void doIcmpPing(List<String> hosts) {
@@ -24,37 +33,69 @@ public class Application {
                 .newScheduledThreadPool(hosts.size());
         Integer delay = readIntegerFromConfig("ICPM_DELAY");
         hosts.parallelStream().forEach(
-                host -> {
-                    scheduler.scheduleAtFixedRate(() -> {
-                        LocalDateTime time = LocalDateTime.now();
-                        List<String> result = new ArrayList<>();
-                        List<String> command = buildPingCommand(host);
-                        ProcessBuilder processBuilder = new ProcessBuilder(command);
-                        try (BufferedReader standardOutput = new BufferedReader(new InputStreamReader(processBuilder.start().getInputStream()))) {
-                            String outputLine;
-                            while ((outputLine = standardOutput.readLine()) != null) {
-                                result.add(outputLine);
-                                if (outputLine.toLowerCase().contains("destination host unreachable")) {
-                                    //todo: call report
-                                }
+                host -> scheduler.scheduleAtFixedRate(() -> {
+                    LocalDateTime time = LocalDateTime.now();
+                    List<String> result = new ArrayList<>();
+                    List<String> command = buildPingCommand(host);
+                    ProcessBuilder processBuilder = new ProcessBuilder(command);
+                    try (BufferedReader standardOutput = new BufferedReader(new InputStreamReader(processBuilder.start().getInputStream()))) {
+                        String outputLine;
+                        while ((outputLine = standardOutput.readLine()) != null) {
+                            result.add(outputLine);
+                            if (outputLine.toLowerCase().contains("destination host unreachable")) {
+                                //todo: call report
                             }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            //todo: call report
                         }
-                        icmpPingLastResults.put(host, new OperationResult(result, time));
-                    }, 0, delay, TimeUnit.SECONDS);
-                }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        //todo: call report
+                    }
+                    icmpPingLastResults.put(host, new OperationResult(result, time));
+                }, 0, delay, TimeUnit.SECONDS)
 
         );
-        while (true) {
-            System.out.println("icmpPingLastResults: " + icmpPingLastResults);
+    }
+
+    public static void doTrace(List<String> hosts) {
+        ScheduledExecutorService scheduler = Executors
+                .newScheduledThreadPool(hosts.size());
+        Integer delay = readIntegerFromConfig("TRACE_DELAY");
+        hosts.parallelStream().forEach(
+                host -> scheduler.scheduleAtFixedRate(() -> {
+                    LocalDateTime time = LocalDateTime.now();
+                    List<String> result = new ArrayList<>();
+                    List<String> command = buildTraceCommand(host);
+                    ProcessBuilder processBuilder = new ProcessBuilder(command);
+                    try (BufferedReader standardOutput = new BufferedReader(new InputStreamReader(processBuilder.start().getInputStream()))) {
+                        String outputLine;
+                        while ((outputLine = standardOutput.readLine()) != null) {
+                            result.add(outputLine);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    tracePingLastResults.put(host, new OperationResult(result, time));
+                }, 0, delay, TimeUnit.SECONDS)
+
+        );
+    }
+
+    public static void sendReport(String host, String icmpPingResult, String tcpPingResult, String traceResult) {
+        try {
+            ReportRequest reportRequest = new ReportRequest();
+            reportRequest.setHost(host);
+            reportRequest.setIcmpPing(icmpPingResult);
+            reportRequest.setTcpPing(tcpPingResult);
+            reportRequest.setTrace(traceResult);
+            ReportSender.sendReport(reportRequest);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
     private static List<String> buildPingCommand(String ipAddress) {
         List<String> command = new ArrayList<>();
-        command.add("ping");
+        command.add(readStringFromConfig("ICPM_PING_COMMAND"));
 
         if (SystemUtils.IS_OS_WINDOWS) {
             command.add("-n");
@@ -69,23 +110,11 @@ public class Application {
         return command;
     }
 
-    private static Integer readIntegerFromConfig(String propName) {
-        try (InputStream input = Application.class.getClassLoader().getResourceAsStream("app.properties")) {
-            Properties prop = new Properties();
-            prop.load(input);
-            return Integer.valueOf(prop.getProperty(propName));
-        } catch (Exception ex) {
-            throw new RuntimeException("Can not read property with name " + propName);
-        }
+    private static List<String> buildTraceCommand(String ipAddress) {
+        List<String> command = new ArrayList<>();
+        command.add(readStringFromConfig("TRACE_COMMAND"));
+        command.add(ipAddress);
+        return command;
     }
 
-    private static String readStringFromConfig(String propName) {
-        try (InputStream input = new FileInputStream("app.properties")) {
-            Properties prop = new Properties();
-            prop.load(input);
-            return prop.getProperty(propName);
-        } catch (Exception ex) {
-            throw new RuntimeException("Can not read property with name " + propName);
-        }
-    }
 }
