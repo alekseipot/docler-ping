@@ -18,20 +18,35 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.*;
 
 import static com.docler.ping.ConfigUtils.readIntegerFromConfig;
 import static com.docler.ping.ConfigUtils.readStringFromConfig;
 
 public class Application {
 
-    private static Map<String, OperationResult> icmpPingLastResults = new ConcurrentHashMap<>();
-    private static Map<String, OperationResult> tcpPingLastResults = new ConcurrentHashMap<>();
-    private static Map<String, OperationResult> traceLastResults = new ConcurrentHashMap<>();
+    private static final LogManager logManager = LogManager.getLogManager();
+    private static final Logger LOGGER = Logger.getLogger("confLogger");
 
-    public static void main(String[] args) {
-        System.out.println("Executing Simple oing app");
-//        doIcmpPing(List.of("jasmin.com", "www.oranum.com"));
-//        doTrace(List.of("jasmin.com", "www.oranum.com"));
+    static {
+        try {
+            logManager.readConfiguration(ConfigUtils.class.getClassLoader().getResourceAsStream("logger.properties"));
+        } catch (IOException exception) {
+            LOGGER.log(Level.SEVERE, "Error in loading configuration", exception);
+        }
+    }
+
+    private static final Map<String, OperationResult> icmpPingLastResults = new ConcurrentHashMap<>();
+    private static final Map<String, OperationResult> tcpPingLastResults = new ConcurrentHashMap<>();
+    private static final Map<String, OperationResult> traceLastResults = new ConcurrentHashMap<>();
+
+    public static void main(String[] args) throws IOException {
+        System.out.println("Executing Simple ping app");
+        LOGGER.info("Logger Name: " + LOGGER.getName());
+        LOGGER.info("Executing Simple ping app");
+
+        doIcmpPing(List.of("jasmin.com", "www.oranum.com"));
+        doTrace(List.of("jasmin.com", "www.oranum.com"));
         doTcpPing(List.of("http://jasmin.com"));
     }
 
@@ -58,6 +73,7 @@ public class Application {
                         sendReport(host);
                     }
                     icmpPingLastResults.put(host, new OperationResult(result, time));
+                    LOGGER.info("Icmp Ping result for host " + host + "result: " + result);
                 }, 0, delay, TimeUnit.SECONDS)
         );
     }
