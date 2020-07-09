@@ -77,13 +77,13 @@ public class Application {
                                 sendReport(host);
                             }
                         }
+                        OperationResult operationResult = new OperationResult(result, time);
+                        LOGGER.info("Finished icmp ping task with result: " + host + " with result: " + operationResult);
+                        icmpPingLastResults.put(host, operationResult);
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        LOGGER.warning("An error has occurred in icpm ping task for host: " + host +", report will be created");
                         sendReport(host);
                     }
-                    OperationResult operationResult = new OperationResult(result, time);
-                    LOGGER.info("Finished icmp ping task with result: " + host + " with result: " + operationResult);
-                    icmpPingLastResults.put(host, operationResult);
                 }, 0, getIcpmDelay(), TimeUnit.SECONDS)
         );
     }
@@ -111,13 +111,13 @@ public class Application {
                         result.add("host: " + host);
                         result.add("request time mls: " + (System.currentTimeMillis() - beforeCall));
                         result.add("httpCode: " + response.getStatusLine().getStatusCode());
+                        OperationResult operationResult = new OperationResult(result, time);
+                        LOGGER.info("Finished tcp ping task with result: " + host + " with result: " + operationResult);
+                        tcpPingLastResults.put(host, operationResult);
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        LOGGER.warning("An error has occurred in tcp ip ping task for host: " + host +", report will be created");
                         sendReport(host);
                     }
-                    OperationResult operationResult = new OperationResult(result, time);
-                    LOGGER.info("Finished tcp ping task with result: " + host + " with result: " + operationResult);
-                    tcpPingLastResults.put(host, operationResult);
                 }, 0, getTcpDelay(), TimeUnit.SECONDS)
         );
     }
@@ -137,12 +137,13 @@ public class Application {
                         while ((outputLine = standardOutput.readLine()) != null) {
                             result.add(outputLine);
                         }
+                        OperationResult operationResult = new OperationResult(result, time);
+                        LOGGER.info("Finished trace task with result: " + host + " with result: " + operationResult);
+                        traceLastResults.put(host, operationResult);
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        LOGGER.warning("An error has occurred in trace task for host: " + host +", report will be created");
+                        sendReport(host);
                     }
-                    OperationResult operationResult = new OperationResult(result, time);
-                    LOGGER.info("Finished trace task with result: " + host + " with result: " + operationResult);
-                    traceLastResults.put(host, operationResult);
                 }, 0, getTraceDelay(), TimeUnit.SECONDS)
 
         );
