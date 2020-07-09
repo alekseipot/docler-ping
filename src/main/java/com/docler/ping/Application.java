@@ -1,5 +1,7 @@
 package com.docler.ping;
 
+import com.docler.ping.model.OperationResult;
+import com.docler.ping.model.ReportRequest;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -18,10 +20,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.*;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 
-import static com.docler.ping.ConfigUtils.readIntegerFromConfig;
-import static com.docler.ping.ConfigUtils.readStringFromConfig;
+import static com.docler.ping.ConfigUtils.*;
 
 public class Application {
 
@@ -53,7 +56,6 @@ public class Application {
     public static void doIcmpPing(List<String> hosts) {
         ScheduledExecutorService scheduler = Executors
                 .newScheduledThreadPool(hosts.size());
-        Integer delay = readIntegerFromConfig("ICPM_DELAY");
         hosts.parallelStream().forEach(
                 host -> scheduler.scheduleAtFixedRate(() -> {
                     LocalDateTime time = LocalDateTime.now();
@@ -74,14 +76,13 @@ public class Application {
                     }
                     icmpPingLastResults.put(host, new OperationResult(result, time));
                     LOGGER.info("Icmp Ping result for host " + host + "result: " + result);
-                }, 0, delay, TimeUnit.SECONDS)
+                }, 0, getIcpmDelay(), TimeUnit.SECONDS)
         );
     }
 
     public static void doTcpPing(List<String> hosts) {
         ScheduledExecutorService scheduler = Executors
                 .newScheduledThreadPool(hosts.size());
-        Integer delay = readIntegerFromConfig("TCP_DELAY");
         hosts.parallelStream().forEach(
                 host -> scheduler.scheduleAtFixedRate(() -> {
                     LocalDateTime time = LocalDateTime.now();
@@ -91,9 +92,9 @@ public class Application {
                         CloseableHttpClient httpclient = HttpClients.createDefault();
                         HttpGet getMethod = new HttpGet(host);
                         RequestConfig requestConfig = RequestConfig.custom()
-                                .setSocketTimeout(readIntegerFromConfig("TCP_SOCKET_TIME_OUT"))
-                                .setConnectTimeout(readIntegerFromConfig("TCP_CONNECTION_TIME_OUT"))
-                                .setConnectionRequestTimeout(readIntegerFromConfig("TCP_CONNECTION_REQUET_TIME_OUT"))
+                                .setSocketTimeout(getTcpSocketTimeOut())
+                                .setConnectTimeout(getTcpConnectionTimeOut())
+                                .setConnectionRequestTimeout(getTcpConnectionRequestTimeOut())
                                 .build();
                         getMethod.setConfig(requestConfig);
                         CloseableHttpResponse response = httpclient.execute(getMethod);
@@ -105,14 +106,13 @@ public class Application {
                         sendReport(host);
                     }
                     icmpPingLastResults.put(host, new OperationResult(result, time));
-                }, 0, delay, TimeUnit.SECONDS)
+                }, 0, getTcpDelay(), TimeUnit.SECONDS)
         );
     }
 
     public static void doTrace(List<String> hosts) {
         ScheduledExecutorService scheduler = Executors
                 .newScheduledThreadPool(hosts.size());
-        Integer delay = readIntegerFromConfig("TRACE_DELAY");
         hosts.parallelStream().forEach(
                 host -> scheduler.scheduleAtFixedRate(() -> {
                     LocalDateTime time = LocalDateTime.now();
@@ -128,7 +128,7 @@ public class Application {
                         e.printStackTrace();
                     }
                     traceLastResults.put(host, new OperationResult(result, time));
-                }, 0, delay, TimeUnit.SECONDS)
+                }, 0, getTraceDelay(), TimeUnit.SECONDS)
 
         );
     }
@@ -157,7 +157,7 @@ public class Application {
 
     private static List<String> buildPingCommand(String ipAddress) {
         List<String> command = new ArrayList<>();
-        command.add(readStringFromConfig("ICPM_PING_COMMAND"));
+        command.add(getIcpmPingCommand());
 
         if (SystemUtils.IS_OS_WINDOWS) {
             command.add("-n");
@@ -174,7 +174,7 @@ public class Application {
 
     private static List<String> buildTraceCommand(String ipAddress) {
         List<String> command = new ArrayList<>();
-        command.add(readStringFromConfig("TRACE_COMMAND"));
+        command.add(getTraceCommand());
         command.add(ipAddress);
         return command;
     }

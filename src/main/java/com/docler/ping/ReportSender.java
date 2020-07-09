@@ -1,5 +1,6 @@
 package com.docler.ping;
 
+import com.docler.ping.model.ReportRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;

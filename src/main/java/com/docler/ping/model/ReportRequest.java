@@ -1,4 +1,4 @@
-package com.docler.ping;
+package com.docler.ping.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;

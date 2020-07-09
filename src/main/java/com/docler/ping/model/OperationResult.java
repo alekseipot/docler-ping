@@ -1,4 +1,4 @@
-package com.docler.ping;
+package com.docler.ping.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
