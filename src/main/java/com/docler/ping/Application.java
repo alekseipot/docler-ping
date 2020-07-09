@@ -105,7 +105,7 @@ public class Application {
                         e.printStackTrace();
                         sendReport(host);
                     }
-                    icmpPingLastResults.put(host, new OperationResult(result, time));
+                    tcpPingLastResults.put(host, new OperationResult(result, time));
                 }, 0, getTcpDelay(), TimeUnit.SECONDS)
         );
     }
