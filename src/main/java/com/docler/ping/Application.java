@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import static com.docler.ping.ConfigUtils.*;
 
@@ -43,13 +45,18 @@ public class Application {
     private static final Map<String, OperationResult> tcpPingLastResults = new ConcurrentHashMap<>();
     private static final Map<String, OperationResult> traceLastResults = new ConcurrentHashMap<>();
 
-    public static void main(String[] args) throws IOException {
-        LOGGER.info("Logger Name: " + LOGGER.getName());
+    public static void main(String[] args) {
         LOGGER.info("Executing Simple ping app");
-
-        doIcmpPing(List.of("jasmin.com", "www.oranum.com"));
-        doTrace(List.of("jasmin.com", "www.oranum.com"));
-        doTcpPing(List.of("http://jasmin.com"));
+        List<String> hosts;
+        if (args == null || args.length == 0) {
+            hosts = List.of("jasmin.com", "www.oranum.com");
+        } else {
+            hosts = Arrays.asList(args);
+        }
+        LOGGER.info("hosts: " + hosts);
+        doIcmpPing(hosts);
+        doTcpPing(hosts);
+        doTrace(hosts);
     }
 
     public static void doIcmpPing(List<String> hosts) {
@@ -57,6 +64,7 @@ public class Application {
                 .newScheduledThreadPool(hosts.size());
         hosts.parallelStream().forEach(
                 host -> scheduler.scheduleAtFixedRate(() -> {
+                    LOGGER.info("Starting icmp ping task for host: " + host);
                     LocalDateTime time = LocalDateTime.now();
                     List<String> result = new ArrayList<>();
                     List<String> command = buildPingCommand(host);
@@ -73,8 +81,9 @@ public class Application {
                         e.printStackTrace();
                         sendReport(host);
                     }
-                    icmpPingLastResults.put(host, new OperationResult(result, time));
-                    LOGGER.info("Icmp Ping result for host " + host + "result: " + result);
+                    OperationResult operationResult = new OperationResult(result, time);
+                    LOGGER.info("Finished icmp ping task with result: " + host + " with result: " + operationResult);
+                    icmpPingLastResults.put(host, operationResult);
                 }, 0, getIcpmDelay(), TimeUnit.SECONDS)
         );
     }
@@ -82,8 +91,10 @@ public class Application {
     public static void doTcpPing(List<String> hosts) {
         ScheduledExecutorService scheduler = Executors
                 .newScheduledThreadPool(hosts.size());
+        hosts = hosts.stream().filter(h -> !h.startsWith("https")).map(h -> "https://" + h).collect(Collectors.toList());
         hosts.parallelStream().forEach(
                 host -> scheduler.scheduleAtFixedRate(() -> {
+                    LOGGER.info("Starting tcp ping task for host: " + host);
                     LocalDateTime time = LocalDateTime.now();
                     long beforeCall = System.currentTimeMillis();
                     List<String> result = new ArrayList<>();
@@ -98,13 +109,15 @@ public class Application {
                         getMethod.setConfig(requestConfig);
                         CloseableHttpResponse response = httpclient.execute(getMethod);
                         result.add("host: " + host);
-                        result.add("time: " + (beforeCall - System.currentTimeMillis()));
+                        result.add("request time mls: " + (System.currentTimeMillis() - beforeCall));
                         result.add("httpCode: " + response.getStatusLine().getStatusCode());
                     } catch (Exception e) {
                         e.printStackTrace();
                         sendReport(host);
                     }
-                    tcpPingLastResults.put(host, new OperationResult(result, time));
+                    OperationResult operationResult = new OperationResult(result, time);
+                    LOGGER.info("Finished tcp ping task with result: " + host + " with result: " + operationResult);
+                    tcpPingLastResults.put(host, operationResult);
                 }, 0, getTcpDelay(), TimeUnit.SECONDS)
         );
     }
@@ -114,6 +127,7 @@ public class Application {
                 .newScheduledThreadPool(hosts.size());
         hosts.parallelStream().forEach(
                 host -> scheduler.scheduleAtFixedRate(() -> {
+                    LOGGER.info("Starting trace task for host: " + host);
                     LocalDateTime time = LocalDateTime.now();
                     List<String> result = new ArrayList<>();
                     List<String> command = buildTraceCommand(host);
@@ -126,7 +140,9 @@ public class Application {
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    traceLastResults.put(host, new OperationResult(result, time));
+                    OperationResult operationResult = new OperationResult(result, time);
+                    LOGGER.info("Finished trace task with result: " + host + " with result: " + operationResult);
+                    traceLastResults.put(host, operationResult);
                 }, 0, getTraceDelay(), TimeUnit.SECONDS)
 
         );
@@ -148,6 +164,7 @@ public class Application {
             if (trace != null) {
                 reportRequest.setTrace(String.join(" ", trace.getResults()));
             }
+            LOGGER.warning("An error has occurred for host: " + host + ", report request: " + reportRequest);
             ReportSender.sendReport(reportRequest);
         } catch (IOException e) {
             e.printStackTrace();
