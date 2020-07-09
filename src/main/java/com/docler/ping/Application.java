@@ -44,7 +44,6 @@ public class Application {
     private static final Map<String, OperationResult> traceLastResults = new ConcurrentHashMap<>();
 
     public static void main(String[] args) throws IOException {
-        System.out.println("Executing Simple ping app");
         LOGGER.info("Logger Name: " + LOGGER.getName());
         LOGGER.info("Executing Simple ping app");
 

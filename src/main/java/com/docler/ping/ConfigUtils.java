@@ -48,6 +48,10 @@ public class ConfigUtils {
         return readStringFromConfig("TRACE_COMMAND");
     }
 
+    static String getReportServer(){
+        return readStringFromConfig("REPORT_SERVER");
+    }
+
     private static Integer readIntegerFromConfig(String propName) {
         return Integer.valueOf(prop.getProperty(propName));
     }

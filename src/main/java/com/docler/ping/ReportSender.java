@@ -10,7 +10,7 @@ import org.apache.http.impl.client.HttpClients;
 
 import java.io.IOException;
 
-import static com.docler.ping.ConfigUtils.readStringFromConfig;
+import static com.docler.ping.ConfigUtils.getReportServer;
 
 public class ReportSender {
     private final static CloseableHttpClient httpclient = HttpClients.createDefault();
@@ -21,7 +21,7 @@ public class ReportSender {
         StringEntity requestEntity = new StringEntity(
                 mapper.writeValueAsString(request),
                 ContentType.APPLICATION_JSON);
-        HttpPost postMethod = new HttpPost(readStringFromConfig("REPORT_SERVER"));
+        HttpPost postMethod = new HttpPost(getReportServer());
         postMethod.setEntity(requestEntity);
         httpclient.execute(postMethod);
     }
